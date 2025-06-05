@@ -39,13 +39,7 @@
             <div class="stat-icon">
                 <i class="fas fa-user-edit"></i>
             </div>
-            <div class="stat-number">
-                {% if books %}
-                    {{ books.values|dictsort:"author_name"|map:attribute="author_name"|unique|list|length|default:"0" }}
-                {% else %}
-                    0
-                {% endif %}
-            </div>
+            <div class="stat-number">{{ unique_authors_count }}</div>
             <div class="stat-label">Unique Authors</div>
         </div>
     </div>
@@ -82,7 +76,7 @@
     </div>
 
     <!-- Book List -->
-    {% if books.items %}
+    {% if books %}
         <ul class="book-list" id="bookList">
             {% for id, book in books.items %}
                 <li class="book-item" data-title="{{ book.book_title|lower }}" 

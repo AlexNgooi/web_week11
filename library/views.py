@@ -2,18 +2,25 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import Http404, HttpResponseRedirect
 from django.urls import reverse
-from firebase_admin import db
 from .forms import BookForm
 import logging
 import time
+import traceback
+
+# Import the firebase_config module
+from . import firebase_config
 
 logger = logging.getLogger(__name__)
 
 def book_list(request):
     """Display all books from Firebase"""
     try:
+        # Ensure Firebase is initialized
+        if firebase_config.db is None:
+            firebase_config.initialize_firebase()
+            
         # Get reference to the books node in Firebase
-        ref = db.reference('books')
+        ref = firebase_config.db.reference('books')
         books_data = ref.get()
         
         # Handle empty database
@@ -35,9 +42,18 @@ def book_list(request):
         return render(request, 'library/book_list.html', context)
     
     except Exception as e:
+        # Log the full error details
         logger.error(f"Error fetching books: {str(e)}")
-        messages.error(request, "Error loading books. Please try again.")
-        return render(request, 'library/book_list.html', {'books': {}, 'book_count': 0})
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        
+        # Print to console for immediate debugging
+        print(f"Firebase Error: {str(e)}")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Full traceback: {traceback.format_exc()}")
+        
+        messages.error(request, f"Error loading books: {str(e)}")
+        return render(request, 'library/book_list.html', {'books': {}, 'book_count': 0, 'unique_authors_count': 0})
 
 def add_book(request):
     """Add a new book to Firebase"""
@@ -45,6 +61,10 @@ def add_book(request):
         form = BookForm(request.POST)
         if form.is_valid():
             try:
+                # Ensure Firebase is initialized
+                if firebase_config.db is None:
+                    firebase_config.initialize_firebase()
+                    
                 # Get form data
                 book_data = {
                     'book_title': form.cleaned_data['book_title'],
@@ -54,7 +74,7 @@ def add_book(request):
                 
                 # Check if book ID already exists
                 book_id = form.cleaned_data['id']
-                ref = db.reference('books')
+                ref = firebase_config.db.reference('books')
                 existing_book = ref.child(str(book_id)).get()
                 
                 if existing_book:
@@ -75,7 +95,8 @@ def add_book(request):
                 
             except Exception as e:
                 logger.error(f"Error adding book: {str(e)}")
-                messages.error(request, "Error adding book. Please try again.")
+                logger.error(f"Full traceback: {traceback.format_exc()}")
+                messages.error(request, f"Error adding book: {str(e)}")
                 return render(request, 'library/add_book.html', {'form': form})
         else:
             # Form validation failed
@@ -88,8 +109,12 @@ def add_book(request):
 def delete_book(request, book_id):
     """Delete a book from Firebase"""
     try:
+        # Ensure Firebase is initialized
+        if firebase_config.db is None:
+            firebase_config.initialize_firebase()
+            
         # Get reference to the specific book
-        ref = db.reference('books').child(str(book_id))
+        ref = firebase_config.db.reference('books').child(str(book_id))
         book_data = ref.get()
         
         if book_data is None:
@@ -110,7 +135,8 @@ def delete_book(request, book_id):
         
     except Exception as e:
         logger.error(f"Error deleting book {book_id}: {str(e)}")
-        messages.error(request, "Error deleting book. Please try again.")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        messages.error(request, f"Error deleting book: {str(e)}")
     
     # Use HttpResponseRedirect for cleaner redirect
     return HttpResponseRedirect(reverse('book_list'))
