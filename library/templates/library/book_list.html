@@ -1,0 +1,196 @@
+{% extends 'library/base.html' %}
+
+{% block title %}Book Collection - Library Management{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <h2 style="margin: 0; color: #32325d; font-size: 1.75rem; font-weight: 700;">
+            <i class="fas fa-books"></i> Library Collection
+        </h2>
+        <a href="{% url 'add_book' %}" class="btn btn-primary">
+            <i class="fas fa-plus-circle"></i> Add New Book
+        </a>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-book"></i>
+            </div>
+            <div class="stat-number">{{ book_count }}</div>
+            <div class="stat-label">Total Books</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-number">
+                {% if books %}
+                    {{ books.values|length }}
+                {% else %}
+                    0
+                {% endif %}
+            </div>
+            <div class="stat-label">Available Books</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-user-edit"></i>
+            </div>
+            <div class="stat-number">
+                {% if books %}
+                    {{ books.values|dictsort:"author_name"|map:attribute="author_name"|unique|list|length|default:"0" }}
+                {% else %}
+                    0
+                {% endif %}
+            </div>
+            <div class="stat-label">Unique Authors</div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div style="margin-bottom: 2rem;">
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 250px;">
+                <input type="text" 
+                       id="searchInput" 
+                       class="form-control" 
+                       placeholder="🔍 Search by title, author, or genre..."
+                       style="padding: 0.75rem 1rem; border: 2px solid #e9ecef; border-radius: 0.5rem;">
+            </div>
+            <select id="genreFilter" class="form-control" style="width: auto; min-width: 150px;">
+                <option value="">All Genres</option>
+                <option value="fiction">Fiction</option>
+                <option value="non-fiction">Non-Fiction</option>
+                <option value="mystery">Mystery</option>
+                <option value="romance">Romance</option>
+                <option value="sci-fi">Science Fiction</option>
+                <option value="fantasy">Fantasy</option>
+                <option value="biography">Biography</option>
+                <option value="history">History</option>
+                <option value="self-help">Self-Help</option>
+                <option value="business">Business</option>
+                <option value="children">Children</option>
+                <option value="young-adult">Young Adult</option>
+                <option value="poetry">Poetry</option>
+                <option value="drama">Drama</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Book List -->
+    {% if books.items %}
+        <ul class="book-list" id="bookList">
+            {% for id, book in books.items %}
+                <li class="book-item" data-title="{{ book.book_title|lower }}" 
+                    data-author="{{ book.author_name|lower }}" 
+                    data-genre="{{ book.genre|lower }}">
+                    <div class="book-info">
+                        <h3><i class="fas fa-book"></i> {{ book.book_title }}</h3>
+                        <p><i class="fas fa-user"></i> <strong>Author:</strong> {{ book.author_name }}</p>
+                        <p>
+                            <i class="fas fa-tag"></i> <strong>Genre:</strong> 
+                            <span class="genre-tag">{{ book.genre|title }}</span>
+                        </p>
+                        <p style="color: #adb5bd; font-size: 0.875rem;">
+                            <i class="fas fa-fingerprint"></i> ID: #{{ id }}
+                        </p>
+                    </div>
+                    <div class="book-actions">
+                        <a href="{% url 'delete_book' id %}" 
+                           class="btn btn-danger"
+                           onclick="return confirmDelete('{{ book.book_title }}')">
+                            <i class="fas fa-trash-alt"></i> Delete
+                        </a>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+        
+        <!-- No results message -->
+        <div id="noResults" style="display: none;" class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-search"></i>
+            </div>
+            <h3>No Books Found</h3>
+            <p>No books match your search criteria. Try adjusting your filters.</p>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-book-open"></i>
+            </div>
+            <h3>Your Library is Empty</h3>
+            <p>Start building your collection by adding your first book!</p>
+            <a href="{% url 'add_book' %}" class="btn btn-primary">
+                <i class="fas fa-plus-circle"></i> Add Your First Book
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+// Search and filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const genreFilter = document.getElementById('genreFilter');
+    const bookList = document.getElementById('bookList');
+    const noResults = document.getElementById('noResults');
+    
+    if (!bookList) return; // Exit if no books
+    
+    function filterBooks() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const selectedGenre = genreFilter.value.toLowerCase();
+        const books = bookList.querySelectorAll('.book-item');
+        let visibleCount = 0;
+        
+        books.forEach(book => {
+            const title = book.dataset.title;
+            const author = book.dataset.author;
+            const genre = book.dataset.genre;
+            
+            const matchesSearch = !searchTerm || 
+                title.includes(searchTerm) || 
+                author.includes(searchTerm) || 
+                genre.includes(searchTerm);
+                
+            const matchesGenre = !selectedGenre || genre === selectedGenre;
+            
+            if (matchesSearch && matchesGenre) {
+                book.style.display = 'flex';
+                visibleCount++;
+            } else {
+                book.style.display = 'none';
+            }
+        });
+        
+        // Show/hide no results message
+        if (visibleCount === 0 && books.length > 0) {
+            noResults.style.display = 'block';
+        } else {
+            noResults.style.display = 'none';
+        }
+    }
+    
+    // Add event listeners
+    searchInput.addEventListener('input', filterBooks);
+    genreFilter.addEventListener('change', filterBooks);
+    
+    // Add animation to book items on load
+    const bookItems = document.querySelectorAll('.book-item');
+    bookItems.forEach((item, index) => {
+        item.style.opacity = '0';
+        item.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            item.style.opacity = '1';
+            item.style.transform = 'translateY(0)';
+        }, index * 50);
+    });
+});
+</script>
+{% endblock %}

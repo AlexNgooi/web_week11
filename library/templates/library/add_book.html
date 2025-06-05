@@ -1,0 +1,239 @@
+{% extends 'library/base.html' %}
+
+{% block title %}Add Book - Library Management{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <div style="width: 4rem; height: 4rem; background: linear-gradient(135deg, #5e72e4, #4c63d2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; color: white; font-size: 1.5rem;">
+            <i class="fas fa-plus"></i>
+        </div>
+        <h2 style="margin: 0; color: #32325d; font-size: 1.75rem; font-weight: 700;">Add New Book</h2>
+        <p style="color: #8898aa; margin-top: 0.5rem;">Fill in the details below to add a book to your library</p>
+    </div>
+
+    <form method="post" id="book-form" novalidate>
+        {% csrf_token %}
+        
+        <!-- Display form errors -->
+        {% if form.non_field_errors %}
+            <div class="alert alert-error">
+                <i class="fas fa-exclamation-circle"></i>
+                {% for error in form.non_field_errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+        <div class="form-group">
+            <label for="{{ form.id.id_for_label }}">
+                <i class="fas fa-fingerprint"></i> {{ form.id.label }}
+            </label>
+            {{ form.id }}
+            {% if form.id.errors %}
+                <small style="color: #cd0a3a;">{{ form.id.errors.0 }}</small>
+            {% else %}
+                <small>{{ form.id.help_text }}</small>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.book_title.id_for_label }}">
+                <i class="fas fa-book"></i> {{ form.book_title.label }}
+            </label>
+            {{ form.book_title }}
+            {% if form.book_title.errors %}
+                <small style="color: #cd0a3a;">{{ form.book_title.errors.0 }}</small>
+            {% else %}
+                <small>{{ form.book_title.help_text }}</small>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.author_name.id_for_label }}">
+                <i class="fas fa-user-edit"></i> {{ form.author_name.label }}
+            </label>
+            {{ form.author_name }}
+            {% if form.author_name.errors %}
+                <small style="color: #cd0a3a;">{{ form.author_name.errors.0 }}</small>
+            {% else %}
+                <small>{{ form.author_name.help_text }}</small>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.genre.id_for_label }}">
+                <i class="fas fa-tags"></i> {{ form.genre.label }}
+            </label>
+            {{ form.genre }}
+            {% if form.genre.errors %}
+                <small style="color: #cd0a3a;">{{ form.genre.errors.0 }}</small>
+            {% else %}
+                <small>{{ form.genre.help_text }}</small>
+            {% endif %}
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 2rem; justify-content: center;">
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+                <i class="fas fa-save"></i> Add Book
+            </button>
+            <a href="{% url 'book_list' %}" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Cancel
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('book-form');
+    const submitBtn = document.getElementById('submitBtn');
+    const bookIdField = document.getElementById('{{ form.id.id_for_label }}');
+    
+    // Auto-generate Book ID if empty
+    if (!bookIdField.value) {
+        const suggestedId = Math.floor(Math.random() * 9000) + 1000;
+        bookIdField.value = suggestedId;
+    }
+    
+    // Real-time validation
+    const inputs = form.querySelectorAll('input, select');
+    inputs.forEach(input => {
+        input.addEventListener('blur', function() {
+            validateField(this);
+        });
+        
+        input.addEventListener('input', function() {
+            if (this.classList.contains('error')) {
+                validateField(this);
+            }
+        });
+    });
+    
+    function validateField(field) {
+        const formGroup = field.closest('.form-group');
+        const errorMsg = formGroup.querySelector('small');
+        
+        // Remove previous error state
+        field.classList.remove('error');
+        field.style.borderColor = '#e9ecef';
+        
+        // Validation rules
+        let isValid = true;
+        let message = '';
+        
+        if (field.id === '{{ form.id.id_for_label }}') {
+            const value = parseInt(field.value);
+            if (!field.value) {
+                isValid = false;
+                message = 'Book ID is required.';
+            } else if (value <= 0) {
+                isValid = false;
+                message = 'Book ID must be a positive number.';
+            } else if (value > 999999) {
+                isValid = false;
+                message = 'Book ID cannot exceed 999999.';
+            }
+        } else if (field.id === '{{ form.book_title.id_for_label }}') {
+            if (!field.value.trim()) {
+                isValid = false;
+                message = 'Book title is required.';
+            } else if (field.value.length > 200) {
+                isValid = false;
+                message = 'Book title cannot exceed 200 characters.';
+            }
+        } else if (field.id === '{{ form.author_name.id_for_label }}') {
+            if (!field.value.trim()) {
+                isValid = false;
+                message = 'Author name is required.';
+            } else if (field.value.length < 2) {
+                isValid = false;
+                message = 'Author name must be at least 2 characters.';
+            } else if (field.value.length > 150) {
+                isValid = false;
+                message = 'Author name cannot exceed 150 characters.';
+            }
+        } else if (field.id === '{{ form.genre.id_for_label }}') {
+            if (!field.value) {
+                isValid = false;
+                message = 'Please select a genre.';
+            }
+        }
+        
+        if (!isValid) {
+            field.classList.add('error');
+            field.style.borderColor = '#f5365c';
+            if (errorMsg) {
+                errorMsg.style.color = '#cd0a3a';
+                errorMsg.textContent = message;
+            }
+        } else {
+            if (errorMsg && errorMsg.style.color === '#cd0a3a') {
+                errorMsg.style.color = '#666';
+                errorMsg.textContent = field.getAttribute('data-help-text') || '';
+            }
+        }
+        
+        return isValid;
+    }
+    
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Validate all fields
+        let isFormValid = true;
+        inputs.forEach(input => {
+            if (!validateField(input)) {
+                isFormValid = false;
+            }
+        });
+        
+        if (!isFormValid) {
+            // Show error animation
+            form.style.animation = 'shake 0.5s';
+            setTimeout(() => {
+                form.style.animation = '';
+            }, 500);
+            return;
+        }
+        
+        // Disable submit button and show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding Book...';
+        
+        // Submit the form
+        form.submit();
+    });
+    
+    // Store help text for restoration
+    document.querySelectorAll('.form-group small').forEach(small => {
+        const field = small.previousElementSibling;
+        if (field) {
+            field.setAttribute('data-help-text', small.textContent);
+        }
+    });
+});
+
+// Shake animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+        20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+    
+    input.error, select.error {
+        animation: fieldShake 0.3s;
+    }
+    
+    @keyframes fieldShake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}
